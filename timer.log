@@ -7,3 +7,6 @@ INFO:main.py:147: Break Number : 1  Start Time : 13:53
 INFO:main.py:158: Break Number : 1  End Time   : 13:53
 
 INFO:main.py:131: Work Number  : 2  Start Time : 13:53
+DEBUG:main.py:78: Start logging the times
+INFO:main.py:119: Date : 2020-08-02
+INFO:main.py:125: Work Number  : 1  Start Time : 14:14

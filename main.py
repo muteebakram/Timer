@@ -7,11 +7,11 @@ from time import sleep
 from datetime import date, datetime
 from logging.handlers import RotatingFileHandler
 
-# Configuration
-WORK_DURATION = 5
-BREAK_DURATION = 2
+# ----------------------------------Configuration--------------------------------
 VOLUME = "6"
 BREAK_NUM = 1
+WORK_DURATION = 900
+BREAK_DURATION = 120
 
 MAC = False
 LINUX = False
@@ -21,22 +21,20 @@ LINUX_PATH = ""
 MAC_PATH = "/Users/mutnawaz/Desktop/Muteeb/Code/timer/"
 WINDOWS_PATH = "C:\\Users\\Muteeb\\Desktop\\RV Major Project\\Personal\\timer\\"
 
+# ---------------------------------End of Configuration---------------------------
+
 log = None
 
 if platform.system() == "linux" or platform.system() == "linux2":
     LINUX = True
-
 elif platform.system() == "darwin":
     MAC = True
-
 elif platform.system() == "win32" or platform.system() == "Windows":
-
     try:
         import winsound
     except Exception as e:
         print("Windows is not supoorted: " + str(e))
         exit(1)
-
     WINDOWS = True
 
 
@@ -55,12 +53,8 @@ def __init_logger():
         )
 
         "refer the log file path"
-        if MAC:
-            log_file = MAC_PATH + "timer.log"
-        elif LINUX:
-            log_file = LINUX_PATH + "timer.log"
-        else:
-            log_file = WINDOWS_PATH + "timer.log"
+        PATH = get_path()
+        log_file = PATH + "timer.log"
 
         "Max size of the log file is 2MB, it rotate if size exceeds"
         handler = RotatingFileHandler(
@@ -119,9 +113,9 @@ def get_path():
 
 if __name__ == "__main__":
 
-    PATH = get_path()
-    print("path" + PATH)
     __init_logger()
+    PATH = get_path()
+    
     log.info("Date : " + str(date.today()))
     play_sound(PATH + "start_timer.wav")
 
@@ -130,9 +124,9 @@ if __name__ == "__main__":
         log.info(
             "Work Number  : " + str(BREAK_NUM) + "  Start Time : " + str(get_time())
         )
-        
+
         sleep(WORK_DURATION)
-        
+
         log.info(
             "Work Number  : "
             + str(BREAK_NUM)
@@ -140,16 +134,16 @@ if __name__ == "__main__":
             + str(get_time())
             + "\n"
         )
-        
+
         play_sound(PATH + "take_break.wav")
 
         log.info(
             "Break Number : " + str(BREAK_NUM) + "  Start Time : " + str(get_time())
         )
         # system("pmset displaysleepnow")
-        
+
         sleep(BREAK_DURATION)
-        
+
         log.info(
             "Break Number : "
             + str(BREAK_NUM)
@@ -161,5 +155,3 @@ if __name__ == "__main__":
         play_sound(PATH + "two_mins_up.wav")
 
         BREAK_NUM += 1
-
-        # system("caffeinate -u -t " + str(WORK_DURATION))
