@@ -115,7 +115,6 @@ if __name__ == "__main__":
 
     __init_logger()
     PATH = get_path()
-    
     log.info("Date : " + str(date.today()))
     play_sound(PATH + "start_timer.wav")
 
