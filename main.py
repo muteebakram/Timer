@@ -8,7 +8,7 @@ from datetime import date, datetime
 from logging.handlers import RotatingFileHandler
 
 # ----------------------------------Configuration--------------------------------
-VOLUME = "6"
+VOLUME = "5"
 BREAK_NUM = 1
 WORK_DURATION = 900
 BREAK_DURATION = 120
@@ -27,7 +27,7 @@ log = None
 
 if platform.system() == "linux" or platform.system() == "linux2":
     LINUX = True
-elif platform.system() == "darwin":
+elif platform.system() == "darwin" or platform.system() == "Darwin":
     MAC = True
 elif platform.system() == "win32" or platform.system() == "Windows":
     try:
@@ -111,6 +111,11 @@ def get_path():
         return WINDOWS_PATH
 
 
+def display_sleep():
+    if MAC:
+        system("pmset displaysleepnow")
+
+
 if __name__ == "__main__":
 
     __init_logger()
@@ -139,7 +144,9 @@ if __name__ == "__main__":
         log.info(
             "Break Number : " + str(BREAK_NUM) + "  Start Time : " + str(get_time())
         )
-        # system("pmset displaysleepnow")
+
+        'Put display to sleep'
+        display_sleep()
 
         sleep(BREAK_DURATION)
 
