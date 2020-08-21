@@ -118,6 +118,14 @@ def display_sleep():
 
 if __name__ == "__main__":
 
+    print("\n*********************** WELCOME **********************")
+    print("*                                                    *")
+    print("*                                                    *")
+    print("*   You can do it! Sending lots of energy to you :)  *")
+    print("*                                                    *")
+    print("*                                                    *")
+    print("******************************************************")
+
     __init_logger()
     PATH = get_path()
     log.info("Date : " + str(date.today()))
