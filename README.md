@@ -1,4 +1,4 @@
-# Timer #
+# Timer App #
 
 ## Introduction ##
 Developers work mainly infront on screen all day. This leads to eye strain and more.
@@ -8,10 +8,10 @@ To overcome this problem here is simple cross-platform timer that is intend to r
 Timer lets developer know 15 mins of work time is completed and suggest to take 2 mins screen break.
 
 
-## Configuration ##
-Open main.py file and customize the path and duration as per your requirements.
+### Configuration ###
+Open main.py file and customize the *path* and *duration* as per your requirements.
 
 
-## To RUN: ##
+### How to run? ###
 
 python main.py &
