@@ -1,6 +1,6 @@
 # Timer App #
 
-## Introduction ##
+### Introduction ###
 Developers work mainly infront on screen all day. This leads to eye strain and more.
 Doctors suggest not to continously stare at screen for not more than 15 mins and take 2 mins break every 15 mins
 
