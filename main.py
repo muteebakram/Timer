@@ -1,15 +1,10 @@
 #!/usr/bin/python3
 
-import sys
-import signal
-import argparse
-import logging
-import platform
-from os import system
 from time import sleep
 from datetime import date, datetime
 from pynput.keyboard import Key, Controller
 from logging.handlers import RotatingFileHandler
+import sys, signal, argparse, logging, platform, subprocess
 
 # ----------------------------------Configuration--------------------------------
 VOLUME = "0.3"
@@ -77,9 +72,9 @@ def exit_handler(sig, frame):
 
 def greet():
     try:
-        return system("motivate")
+        print(subprocess.check_output("motivate", shell=True, stderr=subprocess.DEVNULL).decode())
     except:
-        print("\n*********************** WELCOME **********************")
+        print("\n******************************************************")
         print("*                                                    *")
         print("*                                                    *")
         print("*   You can do it! Sending lots of energy to you :)  *")
@@ -96,9 +91,9 @@ def get_time():
 
 def play_sound(sound_file):
     if MAC:
-        system("afplay --volume " + VOLUME + " {}".format(sound_file))
+        subprocess.check_output("afplay --volume " + VOLUME + " {}".format(sound_file), shell=True)
     elif LINUX:
-        system("aplay -q {}&".format(sound_file))
+        subprocess.check_output("aplay -q {}&".format(sound_file), shell=True)
     else:
         winsound.PlaySound(sound_file, winsound.SND_ASYNC)
 
@@ -114,13 +109,13 @@ def get_path():
 
 def display_sleep():
     if MAC:
-        # system("pmset displaysleepnow")  # Put system to sleep.
-        system("open -a ScreenSaverEngine")
+        # subprocess.check_output("pmset displaysleepnow", shell=True)  # Put system to sleep.
+        subprocess.check_output("open -a ScreenSaverEngine", shell=True)
 
 
 def wakeup():
     if MAC:
-        # system("pmset relative wake 1")  # Wakeup the system.
+        # subprocess.check_output("pmset relative wake 1", shell=True)  # Wakeup the system.
         # log.debug("Waking up.")
         keyboard = Controller()
         key = Key.esc
