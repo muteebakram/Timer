@@ -1,5 +1,7 @@
-#!/usr/bin/ python3
+#!/usr/bin/python3
 
+import sys
+import signal
 import argparse
 import logging
 import platform
@@ -10,7 +12,7 @@ from pynput.keyboard import Key, Controller
 from logging.handlers import RotatingFileHandler
 
 # ----------------------------------Configuration--------------------------------
-VOLUME = "0.1"
+VOLUME = "0.3"
 BREAK_NUM = 1
 WORK_DURATION = 900
 BREAK_DURATION = 120
@@ -26,18 +28,6 @@ WINDOWS_PATH = "C:\\Users\\Muteeb\\Desktop\\RV Major Project\\Personal\\timer\\"
 # ---------------------------------end of Configuration---------------------------
 
 log = None
-
-if platform.system() == "linux" or platform.system() == "linux2":
-    LINUX = True
-elif platform.system() == "darwin" or platform.system() == "Darwin":
-    MAC = True
-elif platform.system() == "win32" or platform.system() == "Windows":
-    try:
-        import winsound
-    except Exception as e:
-        print("Windows is not supported: " + str(e))
-        exit(1)
-    WINDOWS = True
 
 
 def __init_logger():
@@ -77,6 +67,25 @@ def __init_logger():
 
     except Exception as e:
         log.error("Failed to create logger: %s", str(e))
+
+
+def exit_handler(sig, frame):
+    print("\nGood bye. Have a nice day!\n")
+    greet()
+    sys.exit(0)
+
+
+def greet():
+    try:
+        return system("motivate")
+    except:
+        print("\n*********************** WELCOME **********************")
+        print("*                                                    *")
+        print("*                                                    *")
+        print("*   You can do it! Sending lots of energy to you :)  *")
+        print("*                                                    *")
+        print("*                                                    *")
+        print("******************************************************")
 
 
 def get_time():
@@ -124,19 +133,28 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--slient", action="store_true", help="Run in silent mode.")
     args = vars(parser.parse_args())
-    if args["slient"]:
-        print("Running in slient mode...")
 
-    print("\n*********************** WELCOME **********************")
-    print("*                                                    *")
-    print("*                                                    *")
-    print("*   You can do it! Sending lots of energy to you :)  *")
-    print("*                                                    *")
-    print("*                                                    *")
-    print("******************************************************")
+    if platform.system() == "linux" or platform.system() == "linux2":
+        LINUX = True
+    elif platform.system() == "darwin" or platform.system() == "Darwin":
+        MAC = True
+    elif platform.system() == "win32" or platform.system() == "Windows":
+        WINDOWS = True
+        if not args["slient"]:
+            try:
+                import winsound
+            except Exception as e:
+                print("Sound is not supported in windows. Reason: {0}".format(e))
+                args["slient"] = True
 
     __init_logger()
     PATH = get_path()
+    signal.signal(signal.SIGINT, exit_handler)
+    greet()
+
+    if args["slient"]:
+        print("Running in slient mode...")
+
     log.info("Today's date: {0}".format(date.today()))
     if not args["slient"]:
         play_sound(PATH + "start_timer.wav")
