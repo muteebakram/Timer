@@ -11,6 +11,7 @@ Timer lets developer know 15 mins of work time is completed and suggest to take 
 ### Configuration ###
 Open main.py file and customize the *path* and *duration* as per your requirements.
 
+Install [`motivate`](https://github.com/mubaris/motivate) package.
 
 ### How to run? ###
 
