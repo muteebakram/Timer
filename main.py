@@ -33,7 +33,7 @@ def __init_logger():
 
     try:
         "log format <data/time:level:filename:line:function:message>"
-        log_formatter = logging.Formatter("%(levelname)-5s:%(filename)-5s:%(lineno)-3s:  %(message)s")
+        log_formatter = logging.Formatter("%(levelname)5.5s  %(filename)5s#%(lineno)3s  %(message)s")
 
         "Refer the log file path"
         PATH = get_path()
