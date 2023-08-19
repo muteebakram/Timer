@@ -4,7 +4,7 @@ from time import sleep
 from datetime import date, datetime
 from pynput.keyboard import Key, Controller
 from logging.handlers import RotatingFileHandler
-import sys, signal, argparse, logging, platform, subprocess
+import os, sys, signal, argparse, logging, platform, subprocess
 
 # ----------------------------------Configuration--------------------------------
 VOLUME = "0.3"
@@ -15,11 +15,6 @@ BREAK_DURATION = 120
 MAC = False
 LINUX = False
 WINDOWS = False
-
-LINUX_PATH = ""
-MAC_PATH = "/Users/mutnawaz/Desktop/Muteeb/Code/timer/"
-WINDOWS_PATH = "C:\\Users\\Muteeb\\Desktop\\RV Major Project\\Personal\\timer\\"
-
 # ---------------------------------end of Configuration---------------------------
 
 log = None
@@ -37,7 +32,7 @@ def __init_logger():
 
         "Refer the log file path"
         PATH = get_path()
-        log_file = PATH + "timer.log"
+        log_file = os.path.join(PATH, "timer.log")
 
         "Max size of the log file is 2MB, it rotate if size exceeds"
         handler = RotatingFileHandler(
@@ -72,7 +67,7 @@ def exit_handler(sig, frame):
 
 def greet():
     try:
-        print(subprocess.check_output("motivate", shell=True, stderr=subprocess.DEVNULL).decode())
+        print(subprocess.check_output("python motivate/motivate/motivate.py", shell=True, stderr=subprocess.DEVNULL).decode())
     except:
         print("\n******************************************************")
         print("*                                                    *")
@@ -99,12 +94,7 @@ def play_sound(sound_file):
 
 
 def get_path():
-    if MAC:
-        return MAC_PATH
-    elif LINUX:
-        return LINUX_PATH
-    else:
-        return WINDOWS_PATH
+    return os.getcwd()
 
 
 def display_sleep():
@@ -126,14 +116,19 @@ def wakeup():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("-i", "--install", action="store_true", help="Install timer application.")
     parser.add_argument("-s", "--slient", action="store_true", help="Run in silent mode.")
     args = vars(parser.parse_args())
+    __init_logger()
 
-    if platform.system() == "linux" or platform.system() == "linux2":
+
+    platform_name = platform.system()
+
+    if platform_name == "linux" or platform_name == "linux2":
         LINUX = True
-    elif platform.system() == "darwin" or platform.system() == "Darwin":
+    elif platform_name == "darwin" or platform_name == "Darwin":
         MAC = True
-    elif platform.system() == "win32" or platform.system() == "Windows":
+    elif platform_name == "win32" or platform_name == "Windows":
         WINDOWS = True
         if not args["slient"]:
             try:
@@ -142,9 +137,32 @@ if __name__ == "__main__":
                 print("Sound is not supported in windows. Reason: {0}".format(e))
                 args["slient"] = True
 
-    __init_logger()
+    log.debug("Platform: {0}, L: {1}, M: {2}, W: {3}".format(platform_name, LINUX, MAC, WINDOWS))
     PATH = get_path()
+
+    log.debug("Timer application path: {0}".format(PATH))
     signal.signal(signal.SIGINT, exit_handler)
+
+    if args["install"]:
+        try:
+            if MAC or LINUX:
+                print("Installing pip packages..")
+                subprocess.check_output("pip install requirements.txt", shell=True)
+                print("Pip install done.")
+                print("Installing motivate..")
+                subprocess.check_output("rm -rf motivate/", shell=True)
+                subprocess.check_output("git clone https://github.com/mubaris/motivate.git", shell=True)
+                print("Motivate install done.")
+            
+            elif WINDOWS:
+                # TODO: Add windows install.
+                print("Refer: https://github.com/mubaris/motivate")
+            
+        except Exception as e:
+            print("Failed to install timer application. Reason: {0}".format(e))
+
+        exit
+
     greet()
 
     if args["slient"]:
@@ -152,7 +170,7 @@ if __name__ == "__main__":
 
     log.info("Today's date: {0}".format(date.today()))
     if not args["slient"]:
-        play_sound(PATH + "start_timer.wav")
+        play_sound(os.path.join(PATH, "start_timer.wav"))
 
     while True:
 
@@ -160,7 +178,7 @@ if __name__ == "__main__":
         sleep(WORK_DURATION)
         log.info("Work number  {0}, end time    {1}".format(BREAK_NUM, get_time()))
         if not args["slient"]:
-            play_sound(PATH + "take_break.wav")
+            play_sound(os.path.join(PATH, "take_break.wav"))
 
         display_sleep()
 
@@ -168,7 +186,7 @@ if __name__ == "__main__":
         sleep(BREAK_DURATION)
         log.info("Break number {0}, end time    {1}".format(BREAK_NUM, get_time()))
         if not args["slient"]:
-            play_sound(PATH + "two_mins_up.wav")
+            play_sound(os.path.join(PATH, "two_mins_up.wav"))
 
         wakeup()
         BREAK_NUM += 1
