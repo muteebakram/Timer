@@ -139,6 +139,7 @@ if __name__ == "__main__":
 
     log.debug("Platform: {0}, L: {1}, M: {2}, W: {3}".format(platform_name, LINUX, MAC, WINDOWS))
     PATH = get_path()
+    AUDIO_PATH = os.path.join(PATH, "audio")
 
     log.debug("Timer application path: {0}".format(PATH))
     signal.signal(signal.SIGINT, exit_handler)
@@ -170,7 +171,7 @@ if __name__ == "__main__":
 
     log.info("Today's date: {0}".format(date.today()))
     if not args["slient"]:
-        play_sound(os.path.join(PATH, "start_timer.wav"))
+        play_sound(os.path.join(AUDIO_PATH, "start_timer.wav"))
 
     while True:
 
@@ -178,7 +179,7 @@ if __name__ == "__main__":
         sleep(WORK_DURATION)
         log.info("Work number  {0}, end time    {1}".format(BREAK_NUM, get_time()))
         if not args["slient"]:
-            play_sound(os.path.join(PATH, "take_break.wav"))
+            play_sound(os.path.join(AUDIO_PATH, "take_break.wav"))
 
         display_sleep()
 
@@ -186,7 +187,7 @@ if __name__ == "__main__":
         sleep(BREAK_DURATION)
         log.info("Break number {0}, end time    {1}".format(BREAK_NUM, get_time()))
         if not args["slient"]:
-            play_sound(os.path.join(PATH, "two_mins_up.wav"))
+            play_sound(os.path.join(AUDIO_PATH, "two_mins_up.wav"))
 
         wakeup()
         BREAK_NUM += 1
