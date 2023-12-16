@@ -30,14 +30,15 @@ if [ "$log" == true ]; then
   exit 0
 fi
 
+if [ "$kill" == true ]; then
+  kill $(ps aux | grep 'main.py' | grep -v grep | awk '{print $2}')
+  exit 0
+fi
+
 if [ "$slient" == true ]; then
   python3 main.py -s &
 else
   python3 main.py &
-fi
-
-if [ "$kill" == true ]; then
-  kill $(ps aux | grep 'main.py' | grep -v grep | awk '{print $2}')
 fi
 
 deactivate
