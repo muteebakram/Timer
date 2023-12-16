@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 from time import sleep
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pynput.keyboard import Key, Controller
 from logging.handlers import RotatingFileHandler
 import os, sys, signal, argparse, logging, platform, subprocess
@@ -84,6 +84,12 @@ def get_time():
     return time
 
 
+def next_time(seconds):
+    now = datetime.now() + timedelta(seconds=seconds)
+    time = now.strftime("%H:%M:%S")
+    return time
+
+
 def play_sound(sound_file):
     if MAC:
         subprocess.check_output("afplay --volume " + VOLUME + " {}".format(sound_file), shell=True)
@@ -121,7 +127,6 @@ if __name__ == "__main__":
     args = vars(parser.parse_args())
     __init_logger()
 
-
     platform_name = platform.system()
 
     if platform_name == "linux" or platform_name == "linux2":
@@ -154,11 +159,11 @@ if __name__ == "__main__":
                 subprocess.check_output("rm -rf motivate/", shell=True)
                 subprocess.check_output("git clone https://github.com/mubaris/motivate.git", shell=True)
                 print("Motivate install done.")
-            
+
             elif WINDOWS:
                 # TODO: Add windows install.
                 print("Refer: https://github.com/mubaris/motivate")
-            
+
         except Exception as e:
             print("Failed to install timer application. Reason: {0}".format(e))
 
@@ -169,23 +174,23 @@ if __name__ == "__main__":
     if args["slient"]:
         print("Running in slient mode...")
 
-    log.info("Today's date: {0}".format(date.today()))
+    log.info("Today's date: {0}".format(date.today().strftime("%d %b %Y, %A")))
     if not args["slient"]:
         play_sound(os.path.join(AUDIO_PATH, "start_timer.wav"))
 
     while True:
 
-        log.info("Work number  {0}, start time  {1}".format(BREAK_NUM, get_time()))
+        log.info("Work number  {0}, start work  {1}, next break {2}".format(BREAK_NUM, get_time(), next_time(WORK_DURATION)))
         sleep(WORK_DURATION)
-        log.info("Work number  {0}, end time    {1}".format(BREAK_NUM, get_time()))
+        log.info("Work number  {0}, end work    {1}".format(BREAK_NUM, get_time(), next_time(WORK_DURATION)))
         if not args["slient"]:
             play_sound(os.path.join(AUDIO_PATH, "take_break.wav"))
 
         display_sleep()
 
-        log.info("Break number {0}, start time  {1}".format(BREAK_NUM, get_time()))
+        log.info("Break number {0}, start break  {1}, next work {2}".format(BREAK_NUM, get_time(), next_time(WORK_DURATION)))
         sleep(BREAK_DURATION)
-        log.info("Break number {0}, end time    {1}".format(BREAK_NUM, get_time()))
+        log.info("Break number {0}, end break    {1}, next work {2}".format(BREAK_NUM, get_time(), next_time(WORK_DURATION)))
         if not args["slient"]:
             play_sound(os.path.join(AUDIO_PATH, "two_mins_up.wav"))
 
