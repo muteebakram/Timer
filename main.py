@@ -114,7 +114,7 @@ def wakeup():
         # subprocess.check_output("pmset relative wake 1", shell=True)  # Wakeup the system.
         # log.debug("Waking up.")
         keyboard = Controller()
-        key = Key.esc
+        key = Key.cmd
 
         keyboard.press(key)
         keyboard.release(key)
@@ -180,15 +180,15 @@ if __name__ == "__main__":
 
     while True:
 
-        log.info("Work number  {0}, start work  {1}, next break {2}".format(BREAK_NUM, get_time(), next_time(WORK_DURATION)))
+        log.info("Work number  {0}, start work   {1}, next break {2}".format(BREAK_NUM, get_time(), next_time(WORK_DURATION)))
         sleep(WORK_DURATION)
-        log.info("Work number  {0}, end work    {1}".format(BREAK_NUM, get_time(), next_time(WORK_DURATION)))
+        log.info("Work number  {0}, end work     {1}, break end  {2}".format(BREAK_NUM, get_time(), next_time(BREAK_DURATION)))
         if not args["slient"]:
             play_sound(os.path.join(AUDIO_PATH, "take_break.wav"))
 
         display_sleep()
 
-        log.info("Break number {0}, start break  {1}, next work {2}".format(BREAK_NUM, get_time(), next_time(WORK_DURATION)))
+        log.info("Break number {0}, start break  {1}, end break {2}".format(BREAK_NUM, get_time(), next_time(BREAK_DURATION)))
         sleep(BREAK_DURATION)
         log.info("Break number {0}, end break    {1}, next work {2}".format(BREAK_NUM, get_time(), next_time(WORK_DURATION)))
         if not args["slient"]:
