@@ -5,9 +5,6 @@ slient=false
 kill=false
 log=false
 
-cd ~/Desktop/Muteeb/Code/Timer/ || exit
-source timer/bin/activate
-
 while getopts ':hskl' flag; do
   case "${flag}" in
     h) help=true ;;
@@ -20,6 +17,9 @@ while getopts ':hskl' flag; do
       ;;
   esac
 done
+
+cd ~/Desktop/Muteeb/Code/Timer/ || exit
+source timer/bin/activate
 
 if [ "$help" == true ]; then
   python3 main.py -h || exit 0
@@ -43,3 +43,4 @@ fi
 
 deactivate
 cd - || exit
+
