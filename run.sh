@@ -1,5 +1,7 @@
 #!/bin/bash
 
+PWD=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+
 help=false
 slient=false
 kill=false
@@ -32,7 +34,7 @@ if [ "$kill" == true ]; then
   exit 0
 fi
 
-cd ~/Desktop/Muteeb/Code/Timer/ || exit
+cd "$PWD" || exit
 
 if [ "$log" == true ]; then
   tail -f timer.log
