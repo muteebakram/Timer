@@ -4,25 +4,27 @@ help=false
 slient=false
 kill=false
 log=false
+check_status=false
 
-while getopts ':hskl' flag; do
+while getopts ':chskl' flag; do
   case "${flag}" in
     h) help=true ;;
     s) slient=true ;;
     k) kill=true ;;
     l) log=true ;;
-    *)
-      python3 main.py -h
-      exit 1
-      ;;
+    c) check_status=true ;;
+    *) help=true ;;
   esac
 done
 
-cd ~/Desktop/Muteeb/Code/Timer/ || exit
-source timer/bin/activate
-
-if [ "$help" == true ]; then
-  python3 main.py -h || exit 0
+if [ "$check_status" == true ]; then
+  count=$(ps aux | grep "main.py" | wc -l)
+  if [ "$count" -gt 1 ]; then
+    printf "online 😊\n"
+  else
+    printf "offline 🙃\n"
+  fi
+  exit 0
 fi
 
 if [ "$log" == true ]; then
@@ -35,6 +37,14 @@ if [ "$kill" == true ]; then
   exit 0
 fi
 
+cd ~/Desktop/Muteeb/Code/Timer/ || exit
+source timer/bin/activate
+
+if [ "$help" == true ]; then
+  python3 main.py -h
+  exit 0
+fi
+
 if [ "$slient" == true ]; then
   python3 main.py -s &
 else
@@ -43,4 +53,3 @@ fi
 
 deactivate
 cd - || exit
-
