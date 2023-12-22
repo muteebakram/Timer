@@ -27,17 +27,18 @@ if [ "$check_status" == true ]; then
   exit 0
 fi
 
-if [ "$log" == true ]; then
-  tail -f timer.log
-  exit 0
-fi
-
 if [ "$kill" == true ]; then
   kill $(ps aux | grep 'main.py' | grep -v grep | awk '{print $2}')
   exit 0
 fi
 
 cd ~/Desktop/Muteeb/Code/Timer/ || exit
+
+if [ "$log" == true ]; then
+  tail -f timer.log
+  exit 0
+fi
+
 source timer/bin/activate
 
 if [ "$help" == true ]; then
