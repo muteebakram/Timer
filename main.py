@@ -8,10 +8,13 @@ import os, sys, signal, argparse, logging, platform, subprocess
 
 # ----------------------------------Configuration--------------------------------
 VOLUME = "0.2"
-BREAK_NUM = 1
+TIME_FMT = "%-I:%-M:%-S %p"
 WORK_DURATION = 900
 BREAK_DURATION = 120
+
+BREAK_NUM = 1
 WORK_START_TIME = ""
+NEXT_WORK_TIME = ""
 NEXT_BREAK_TIME = ""
 
 MAC = False
@@ -63,6 +66,10 @@ def __init_logger():
 
 def usr_signal_handler(sig, frame):
     print_stats()
+    notify(
+        title=f"Timer Work #{BREAK_NUM}",
+        subtitle=f"Next Break @ {NEXT_BREAK_TIME} ({time_remaining_for_next_break()})",
+    )
 
 
 def exit_handler(sig, frame):
@@ -89,13 +96,13 @@ def greet():
 
 def get_time():
     now = datetime.now()
-    time = now.strftime("%H:%M:%S")
+    time = now.strftime(TIME_FMT)
     return time
 
 
 def add_time(seconds):
     now = datetime.now() + timedelta(seconds=seconds)
-    time = now.strftime("%H:%M:%S")
+    time = now.strftime(TIME_FMT)
     return time
 
 
@@ -133,17 +140,55 @@ def wakeup():
         keyboard.release(key)
 
 
+def notify(title, subtitle):
+    if MAC:
+        subprocess.check_output(
+            f"""osascript -e 'display notification subtitle "{subtitle}" with title "{title}"'""", shell=True
+        )
+        sleep(5)  # Notification toast displayed for 5 seconds and cleared by below command.
+        subprocess.check_output(
+            """
+            osascript -e 'tell application "System Events"
+                tell process "NotificationCenter"
+                if not (window "Notification Center" exists) then return
+                set alertGroups to groups of first UI element of first scroll area of first group of window "Notification Center"
+                    repeat with aGroup in alertGroups
+                        try
+                            perform (first action of aGroup whose name contains "Close" or name contains "Clear")
+                        on error errMsg
+                            log errMsg
+                        end try
+                    end repeat
+                    -- Show no message on success
+                    return ""
+                end tell
+            end tell'
+            """,
+            shell=True,
+        )
+
+
+def time_remaining_for_next_break():
+    fmt = TIME_FMT.replace("-", "")
+    td = (datetime.strptime(NEXT_BREAK_TIME, fmt) - datetime.strptime(get_time(), fmt)).seconds
+    seconds = td % 60
+    minutes = td // 60
+
+    return f"{minutes}m {seconds}s"
+
+
 def print_stats():
     stats = {
-        "TodaysDate": get_todays_date(),
-        "NumberOfBreaks": BREAK_NUM,
-        "CurrentTime": datetime.now().strftime("%H:%M:%S"),
-        "WorkStartTime": WORK_START_TIME,
-        "NextBreakTime": NEXT_BREAK_TIME,
+        "Date             : ": get_todays_date(),
+        "Time             : ": get_time(),
+        "# Breaks         : ": BREAK_NUM,
+        "Work Start Time  : ": WORK_START_TIME,
+        "Next Break Time  : ": NEXT_BREAK_TIME,
+        "Time for Break   : ": time_remaining_for_next_break(),
     }
 
     for key, value in stats.items():
-        print(f"{key}: {value}")
+        print(f"{key}{value}")
 
     print()
 
@@ -152,6 +197,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--install", action="store_true", help="Install timer application.")
     parser.add_argument("-s", "--slient", action="store_true", help="Run in silent mode.")
+    parser.add_argument(
+        "-n", "--notification", action="store_true", help="Throw 5 second notification before break. Only on MacOS."
+    )
     parser.add_argument("-w", "--work-duration", help="Duration of work in seconds.", default=900)
     parser.add_argument("-b", "--break-duration", help="Duration of break in seconds.", default=120)
     args = vars(parser.parse_args())
@@ -224,22 +272,28 @@ if __name__ == "__main__":
 
     # End work time is Next break time & End break time is Next work time.
     while True:
+        WORK_START_TIME = get_time()
         end_work_time = add_time(WORK_DURATION)
-        log.info("Work  # {0}, start work  {1}, end work/next break {2}".format(BREAK_NUM, get_time(), end_work_time))
-        sleep(WORK_DURATION)
+        NEXT_BREAK_TIME = end_work_time
+        end_break_time = add_time(WORK_DURATION + BREAK_DURATION)
+        NEXT_WORK_TIME = end_break_time
+
+        log.info("Work  # {0}, start work  {1}, end work/next break {2}".format(BREAK_NUM, get_time(), NEXT_BREAK_TIME))
+        if args["notification"] and MAC and WORK_DURATION > 5:
+            sleep(WORK_DURATION - 5)
+            notify(title=f"Take Break #{BREAK_NUM}", subtitle=f"Resume Work @ {NEXT_WORK_TIME}")
+        else:
+            sleep(WORK_DURATION)
 
         display_sleep()
         if not args["slient"]:
             play_sound(os.path.join(AUDIO_PATH, "take_break.wav"))
 
-        end_break_time = add_time(BREAK_DURATION)
-        log.info("Break # {0}, start break {1}, end break/next work  {2}".format(BREAK_NUM, get_time(), end_break_time))
+        log.info("Break # {0}, start break {1}, end break/next work {2}".format(BREAK_NUM, get_time(), NEXT_WORK_TIME))
         sleep(BREAK_DURATION)
 
         wakeup()
         if not args["slient"]:
             play_sound(os.path.join(AUDIO_PATH, "two_mins_up.wav"))
 
-        WORK_START_TIME = end_break_time
-        NEXT_BREAK_TIME = add_time(WORK_DURATION)
         BREAK_NUM += 1

@@ -76,9 +76,9 @@ if is_running 0; then
 fi
 
 if [ "$slient" == true ]; then
-  python3 main.py -s &
+  python3 main.py -s -n &
 else
-  python3 main.py &
+  python3 main.py -n &
 fi
 
 deactivate
