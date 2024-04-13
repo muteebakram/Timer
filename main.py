@@ -7,10 +7,12 @@ from logging.handlers import RotatingFileHandler
 import os, sys, signal, argparse, logging, platform, subprocess
 
 # ----------------------------------Configuration--------------------------------
-VOLUME = "0.3"
+VOLUME = "0.2"
 BREAK_NUM = 1
 WORK_DURATION = 900
 BREAK_DURATION = 120
+WORK_START_TIME = ""
+NEXT_BREAK_TIME = ""
 
 MAC = False
 LINUX = False
@@ -32,7 +34,7 @@ def __init_logger():
 
         "Refer the log file path"
         PATH = get_path()
-        log_file = os.path.join(PATH, "timer.log")
+        log_file = os.path.join(PATH, "logs", "timer.log")
 
         "Max size of the log file is 2MB, it rotate if size exceeds"
         handler = RotatingFileHandler(
@@ -44,7 +46,7 @@ def __init_logger():
             delay=0,
         )
 
-        "appy the log format and level"
+        "apply the log format and level"
         handler.setFormatter(log_formatter)
         handler.setLevel(logging.DEBUG)
         log = logging.getLogger("timer.log")
@@ -59,16 +61,23 @@ def __init_logger():
         log.error("Failed to create logger: %s", str(e))
 
 
+def usr_signal_handler(sig, frame):
+    print_stats()
+
+
 def exit_handler(sig, frame):
     print("\nGood bye. Have a nice day!\n")
-    greet()
     sys.exit(0)
 
 
 def greet():
     try:
-        print(subprocess.check_output("python motivate/motivate/motivate.py", shell=True, stderr=subprocess.DEVNULL).decode())
-    except:
+        print(
+            subprocess.check_output(
+                "python motivate/motivate/motivate.py", shell=True, stderr=subprocess.DEVNULL
+            ).decode()
+        )
+    except Exception:
         print("\n******************************************************")
         print("*                                                    *")
         print("*                                                    *")
@@ -84,10 +93,14 @@ def get_time():
     return time
 
 
-def next_time(seconds):
+def add_time(seconds):
     now = datetime.now() + timedelta(seconds=seconds)
     time = now.strftime("%H:%M:%S")
     return time
+
+
+def get_todays_date():
+    return date.today().strftime("%A, %d %b %Y")
 
 
 def play_sound(sound_file):
@@ -120,10 +133,27 @@ def wakeup():
         keyboard.release(key)
 
 
+def print_stats():
+    stats = {
+        "TodaysDate": get_todays_date(),
+        "NumberOfBreaks": BREAK_NUM,
+        "CurrentTime": datetime.now().strftime("%H:%M:%S"),
+        "WorkStartTime": WORK_START_TIME,
+        "NextBreakTime": NEXT_BREAK_TIME,
+    }
+
+    for key, value in stats.items():
+        print(f"{key}: {value}")
+
+    print()
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--install", action="store_true", help="Install timer application.")
     parser.add_argument("-s", "--slient", action="store_true", help="Run in silent mode.")
+    parser.add_argument("-w", "--work-duration", help="Duration of work in seconds.", default=900)
+    parser.add_argument("-b", "--break-duration", help="Duration of break in seconds.", default=120)
     args = vars(parser.parse_args())
     __init_logger()
 
@@ -148,6 +178,7 @@ if __name__ == "__main__":
 
     log.debug("Timer application path: {0}".format(PATH))
     signal.signal(signal.SIGINT, exit_handler)
+    signal.signal(signal.SIGUSR1, usr_signal_handler)
 
     if args["install"]:
         try:
@@ -167,32 +198,48 @@ if __name__ == "__main__":
         except Exception as e:
             print("Failed to install timer application. Reason: {0}".format(e))
 
-        exit
+        sys.exit(0)
+
+    if args["work_duration"]:
+        try:
+            WORK_DURATION = int(args["work_duration"])
+        except Exception as e:
+            print(f"Failed to read work duration. Reason {e}")
+
+    if args["break_duration"]:
+        try:
+            BREAK_DURATION = int(args["break_duration"])
+        except Exception as e:
+            print(f"Failed to read break duration. Reason {e}")
 
     greet()
+
+    log.info("Today's date: {0}".format(get_todays_date()))
 
     if args["slient"]:
         print("Running in slient mode...")
 
-    log.info("Today's date: {0}".format(date.today().strftime("%d %b %Y, %A")))
     if not args["slient"]:
         play_sound(os.path.join(AUDIO_PATH, "start_timer.wav"))
 
+    # End work time is Next break time & End break time is Next work time.
     while True:
-
-        log.info("Work number  {0}, start work  {1}, next break {2}".format(BREAK_NUM, get_time(), next_time(WORK_DURATION)))
+        end_work_time = add_time(WORK_DURATION)
+        log.info("Work  # {0}, start work  {1}, end work/next break {2}".format(BREAK_NUM, get_time(), end_work_time))
         sleep(WORK_DURATION)
-        log.info("Work number  {0}, end work    {1}, break end  {2}".format(BREAK_NUM, get_time(), next_time(BREAK_DURATION)))
+
+        display_sleep()
         if not args["slient"]:
             play_sound(os.path.join(AUDIO_PATH, "take_break.wav"))
 
-        display_sleep()
-
-        log.info("Break number {0}, start break {1}, end break  {2}".format(BREAK_NUM, get_time(), next_time(BREAK_DURATION)))
+        end_break_time = add_time(BREAK_DURATION)
+        log.info("Break # {0}, start break {1}, end break/next work  {2}".format(BREAK_NUM, get_time(), end_break_time))
         sleep(BREAK_DURATION)
-        log.info("Break number {0}, end break   {1}, next work  {2}".format(BREAK_NUM, get_time(), next_time(WORK_DURATION)))
+
+        wakeup()
         if not args["slient"]:
             play_sound(os.path.join(AUDIO_PATH, "two_mins_up.wav"))
 
-        wakeup()
+        WORK_START_TIME = end_break_time
+        NEXT_BREAK_TIME = add_time(WORK_DURATION)
         BREAK_NUM += 1
