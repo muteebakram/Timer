@@ -3,15 +3,17 @@
 PWD=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 
 help=false
+install=false
 slient=false
 kill=false
 log=false
 print=false
 check_status=false
 
-while getopts ':chsklp' flag; do
+while getopts ':ichsklp' flag; do
   case "${flag}" in
     h) help=true ;;
+    i) install=true ;;
     s) slient=true ;;
     k) kill=true ;;
     l) log=true ;;
@@ -38,6 +40,12 @@ is_running() {
   [ "$print" == 1 ] && printf "offline 🙃\n"
   return 1 # Not running
 }
+
+if [ "$install" == true ]; then
+  python3 main.py -i
+  deactivate
+  exit 0
+fi
 
 if [ "$check_status" == true ]; then
   is_running 1

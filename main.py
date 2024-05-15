@@ -61,7 +61,7 @@ def __init_logger():
         return handler
 
     except Exception as e:
-        log.error("Failed to create logger: %s", str(e))
+        print("Failed to create logger: %s", str(e))
 
 
 def usr_signal_handler(sig, frame):
@@ -231,17 +231,18 @@ if __name__ == "__main__":
     if args["install"]:
         try:
             if MAC or LINUX:
-                print("Installing pip packages..")
-                subprocess.check_output("pip install requirements.txt", shell=True)
-                print("Pip install done.")
-                print("Installing motivate..")
-                subprocess.check_output("rm -rf motivate/", shell=True)
-                subprocess.check_output("git clone https://github.com/mubaris/motivate.git", shell=True)
-                print("Motivate install done.")
+                print("Installing pip packages...", end="")
+                subprocess.check_output("python3 -m venv timer", shell=True)
+                subprocess.check_output("source timer/bin/activate", shell=True)
+                subprocess.check_output("pip3 install -r requirements.txt", shell=True)
+                print("done.")
+                print("Create log directory...", end="")
+                subprocess.check_output("mkdir logs && touch timer.log", shell=True)
+                print("done.")
+                print("Timer application installed.")
 
             elif WINDOWS:
                 # TODO: Add windows install.
-                print("Refer: https://github.com/mubaris/motivate")
 
         except Exception as e:
             print("Failed to install timer application. Reason: {0}".format(e))

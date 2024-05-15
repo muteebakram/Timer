@@ -8,26 +8,19 @@ Doctors suggest not to continously stare at screen for not more than 15 mins and
 To overcome this problem here is simple cross-platform timer that is intend to run in background.
 Timer lets developer know 15 mins of work time is completed and suggest to take 2 mins screen break.
 
-### Configuration
+### Install
 
-Open main.py file and customize the _path_ and _duration_ as per your requirements.
+```sh
+# Clone the application
+git clone git@github.com:muteebakram/Timer.git
 
-Install [`motivate`](https://github.com/mubaris/motivate) package.
+# Install application
+./run.sh -i
+```
 
 ### How to run?
 
 ```sh
-git clone https://github.com/muteebakram/Timer.git
-
-cd Timer && python main.py &
-```
-
-or
-
-Mac use the executable directly created from `pyinstaller`.
-
-```sh
-git clone https://github.com/muteebakram/Timer.git
-
-cd Timer && ./dist/timer
+# Runs timer in silent mode.
+./run.sh -s
 ```
