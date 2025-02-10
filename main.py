@@ -195,7 +195,6 @@ def print_stats():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--install", action="store_true", help="Install timer application.")
     parser.add_argument("-s", "--slient", action="store_true", help="Run in silent mode.")
     parser.add_argument(
         "-n", "--notification", action="store_true", help="Throw 5 second notification before break. Only on MacOS."
@@ -227,27 +226,6 @@ if __name__ == "__main__":
     log.debug("Timer application path: {0}".format(PATH))
     signal.signal(signal.SIGINT, exit_handler)
     signal.signal(signal.SIGUSR1, usr_signal_handler)
-
-    if args["install"]:
-        try:
-            if MAC or LINUX:
-                print("Installing pip packages...", end="")
-                subprocess.check_output("python3 -m venv timer", shell=True)
-                subprocess.check_output("source timer/bin/activate", shell=True)
-                subprocess.check_output("pip3 install -r requirements.txt", shell=True)
-                print("done.")
-                print("Create log directory...", end="")
-                subprocess.check_output("mkdir logs && touch timer.log", shell=True)
-                print("done.")
-                print("Timer application installed.")
-
-            elif WINDOWS:
-                # TODO: Add windows install.
-
-        except Exception as e:
-            print("Failed to install timer application. Reason: {0}".format(e))
-
-        sys.exit(0)
 
     if args["work_duration"]:
         try:

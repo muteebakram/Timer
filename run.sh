@@ -1,10 +1,11 @@
 #!/bin/bash
+# shellcheck source=timer/bin/activate
 
 PWD=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 
 help=false
 install=false
-slient=false
+silent=false
 kill=false
 log=false
 print=false
@@ -14,7 +15,7 @@ while getopts ':ichsklp' flag; do
   case "${flag}" in
     h) help=true ;;
     i) install=true ;;
-    s) slient=true ;;
+    s) silent=true ;;
     k) kill=true ;;
     l) log=true ;;
     p) print=true ;;
@@ -42,8 +43,13 @@ is_running() {
 }
 
 if [ "$install" == true ]; then
-  python3 main.py -i
+  echo "Installing timer..."
+  python3 -m venv timer
+  source timer/bin/activate
+  pip3 install -r requirements.txt
+  mkdir logs && touch timer.log
   deactivate
+  echo "Timer application installed."
   exit 0
 fi
 
@@ -53,7 +59,7 @@ if [ "$check_status" == true ]; then
 fi
 
 if [ "$kill" == true ]; then
-  kill $(ps aux | grep 'main.py' | grep -v grep | awk '{print $2}')
+  kill "$(ps aux | grep 'main.py' | grep -v grep | awk '{print $2}')"
   exit 0
 fi
 
@@ -67,7 +73,19 @@ fi
 source timer/bin/activate
 
 if [ "$help" == true ]; then
-  python3 main.py -h
+  echo "
+  usage: run.sh [-h] [-i] [-s] [-n] [-w WORK_DURATION] [-b BREAK_DURATION]
+
+  options:
+    -h, --help            show this help message and exit
+    -i, --install         Install timer application.
+    -s, --slient          Run in silent mode.
+    -n, --notification    Throw 5 second notification before break. Only on MacOS.
+    -w WORK_DURATION, --work-duration WORK_DURATION
+                          Duration of work in seconds.
+    -b BREAK_DURATION, --break-duration BREAK_DURATION
+                          Duration of break in seconds.
+  "
   deactivate
   exit 0
 fi
@@ -83,7 +101,7 @@ if is_running 0; then
   exit 0
 fi
 
-if [ "$slient" == true ]; then
+if [ "$silent" == true ]; then
   python3 main.py -s -n &
 else
   python3 main.py -n &
