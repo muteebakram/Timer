@@ -141,31 +141,53 @@ def wakeup():
 
 
 def notify(title, subtitle):
-    if MAC:
-        subprocess.check_output(
-            f"""osascript -e 'display notification subtitle "{subtitle}" with title "{title}"'""", shell=True
-        )
-        sleep(5)  # Notification toast displayed for 5 seconds and cleared by below command.
-        subprocess.check_output(
-            """
-            osascript -e 'tell application "System Events"
-                tell process "NotificationCenter"
-                if not (window "Notification Center" exists) then return
+    if not MAC:
+        return
+
+    display_script = """
+    on run argv
+        display notification "" with title (item 1 of argv) subtitle (item 2 of argv)
+    end run
+    """
+    result = subprocess.run(
+        ["osascript", "-e", display_script, title, subtitle],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        if log is not None:
+            log.debug("Failed to display notification: %s", result.stderr.strip())
+        return
+
+    # Clearing Notification Center depends on macOS's private accessibility
+    # hierarchy, so treat it as best-effort and never stop the timer for it.
+    sleep(5)
+    clear_script = """
+    tell application "System Events"
+        tell process "NotificationCenter"
+            try
+                if not (window "Notification Center" exists) then return ""
                 set alertGroups to groups of first UI element of first scroll area of first group of window "Notification Center"
-                    repeat with aGroup in alertGroups
-                        try
-                            perform (first action of aGroup whose name contains "Close" or name contains "Clear")
-                        on error errMsg
-                            log errMsg
-                        end try
-                    end repeat
-                    -- Show no message on success
-                    return ""
-                end tell
-            end tell'
-            """,
-            shell=True,
-        )
+                repeat with aGroup in alertGroups
+                    try
+                        perform (first action of aGroup whose name contains "Close" or name contains "Clear")
+                    end try
+                end repeat
+            end try
+        end tell
+    end tell
+    """
+    result = subprocess.run(
+        ["osascript", "-e", clear_script],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0 and log is not None:
+        log.debug("Failed to clear notification: %s", result.stderr.strip())
 
 
 def time_remaining_for_next_break():
