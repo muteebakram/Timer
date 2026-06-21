@@ -7,7 +7,7 @@ from logging.handlers import RotatingFileHandler
 import os, sys, signal, argparse, logging, platform, subprocess
 
 # ----------------------------------Configuration--------------------------------
-VOLUME = "0.2"
+VOLUME = "0.5"
 TIME_FMT = "%-I:%-M:%-S %p"
 WORK_DURATION = 900
 BREAK_DURATION = 120
@@ -169,6 +169,18 @@ def notify(title, subtitle):
         tell process "NotificationCenter"
             try
                 if not (window "Notification Center" exists) then return ""
+    if MAC:
+        # With title, subtile, and text
+        # osascript -e 'display notification "{subtitle}" subtitle "{title}" with title "Timer"'
+        subprocess.check_output(
+            f"""osascript -e 'display notification subtitle "{subtitle}" with title "{title}"'""", shell=True
+        )
+        sleep(5)  # Notification toast displayed for 5 seconds and cleared by below command.
+        subprocess.check_output(
+            """
+            osascript -e 'tell application "System Events"
+                tell process "NotificationCenter"
+                if not (window "Notification Center" exists) then return
                 set alertGroups to groups of first UI element of first scroll area of first group of window "Notification Center"
                 repeat with aGroup in alertGroups
                     try
@@ -203,7 +215,7 @@ def print_stats():
     stats = {
         "Date             : ": get_todays_date(),
         "Time             : ": get_time(),
-        "# Breaks         : ": BREAK_NUM,
+        "# Breaks         : ": BREAK_NUM - 1,
         "Work Start Time  : ": WORK_START_TIME,
         "Next Break Time  : ": NEXT_BREAK_TIME,
         "Time for Break   : ": time_remaining_for_next_break(),
