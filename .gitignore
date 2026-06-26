@@ -2,3 +2,4 @@ timer/
 settings.json
 motivate/
 logs/
+__pycache__/

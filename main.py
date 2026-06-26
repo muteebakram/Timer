@@ -168,23 +168,15 @@ def notify(title, subtitle):
     tell application "System Events"
         tell process "NotificationCenter"
             try
-                if not (window "Notification Center" exists) then return ""
-    if MAC:
-        # With title, subtile, and text
-        # osascript -e 'display notification "{subtitle}" subtitle "{title}" with title "Timer"'
-        subprocess.check_output(
-            f"""osascript -e 'display notification subtitle "{subtitle}" with title "{title}"'""", shell=True
-        )
-        sleep(5)  # Notification toast displayed for 5 seconds and cleared by below command.
-        subprocess.check_output(
-            """
-            osascript -e 'tell application "System Events"
-                tell process "NotificationCenter"
                 if not (window "Notification Center" exists) then return
                 set alertGroups to groups of first UI element of first scroll area of first group of window "Notification Center"
                 repeat with aGroup in alertGroups
                     try
-                        perform (first action of aGroup whose name contains "Close" or name contains "Clear")
+                        perform (first action of aGroup whose name contains "Close")
+                    on error
+                        try
+                            perform (first action of aGroup whose name contains "Clear")
+                        end try
                     end try
                 end repeat
             end try
