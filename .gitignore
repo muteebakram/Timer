@@ -1,5 +1,8 @@
 timer/
+.venv/
 settings.json
 motivate/
 logs/
 __pycache__/
+*.pyc
+timer.log

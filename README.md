@@ -24,3 +24,9 @@ git clone git@github.com:muteebakram/Timer.git
 # Runs timer in silent mode.
 ./run.sh -s
 ```
+
+### Test
+
+```sh
+./run.sh --test
+```
