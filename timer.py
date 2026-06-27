@@ -558,11 +558,13 @@ def run_timer(args: argparse.Namespace, platform_name: str) -> None:
     configure_signals(state, platform_name)
 
     if is_mac(platform_name):
+        app = None
         try:
             app = setup_darwin_menu_bar(state)
         except Exception as exc:
             log.debug("Failed to start Darwin menu bar timer: %s", exc)
-        else:
+
+        if app is not None:
             timer_thread = Thread(target=run_timer_loop, args=(args, platform_name, state), daemon=True)
             timer_thread.start()
             app.run()
