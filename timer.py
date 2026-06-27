@@ -361,19 +361,24 @@ def time_remaining_for_next_break(state: TimerState, now: Optional[datetime] = N
     return f"{minutes}m {seconds}s"
 
 
-def print_stats(state: TimerState) -> None:
+def timer_stats_lines(state: TimerState) -> list[str]:
     snapshot = state.snapshot()
-    stats = {
-        "Date             : ": get_todays_date(),
-        "Time             : ": get_time(),
-        "# Breaks         : ": snapshot.break_num - 1,
-        "Work Start Time  : ": format_optional_time(snapshot.work_start_time),
-        "Next Break Time  : ": format_optional_time(snapshot.next_break_time),
-        "Time for Break   : ": time_remaining_for_next_break(state),
-    }
+    minutes, seconds = divmod(seconds_remaining(snapshot.next_break_time), 60)
+    time_for_break = f"{minutes}m {seconds}s"
+    stats = (
+        ("Date             : ", get_todays_date()),
+        ("Time             : ", get_time()),
+        ("# Breaks         : ", snapshot.break_num - 1),
+        ("Work Start Time  : ", format_optional_time(snapshot.work_start_time)),
+        ("Next Break Time  : ", format_optional_time(snapshot.next_break_time)),
+        ("Time for Break   : ", time_for_break),
+    )
+    return [f"{key}{value}" for key, value in stats]
 
-    for key, value in stats.items():
-        print(f"{key}{value}")
+
+def print_stats(state: TimerState) -> None:
+    for line in timer_stats_lines(state):
+        print(line)
 
     print()
 
@@ -410,10 +415,21 @@ def setup_darwin_menu_bar(state: TimerState):
     from AppKit import (
         NSApplication,
         NSApplicationActivationPolicyAccessory,
+        NSColor,
+        NSFont,
+        NSFontAttributeName,
+        NSForegroundColorAttributeName,
+        NSMenu,
+        NSMenuItem,
         NSStatusBar,
         NSVariableStatusItemLength,
     )
-    from Foundation import NSObject, NSTimer
+    from Foundation import NSAttributedString, NSObject, NSTimer
+
+    def menu_status_font():
+        if hasattr(NSFont, "monospacedSystemFontOfSize_weight_"):
+            return NSFont.monospacedSystemFontOfSize_weight_(13.0, 0.0)
+        return NSFont.userFixedPitchFontOfSize_(13.0) or NSFont.menuFontOfSize_(13.0)
 
     class DarwinMenuBarController(NSObject):
         def updateStatus_(self, timer):
@@ -423,12 +439,33 @@ def setup_darwin_menu_bar(state: TimerState):
             if button is not None:
                 button.setTitle_(title)
 
+        def menuNeedsUpdate_(self, menu):
+            menu.removeAllItems()
+            for line in timer_stats_lines(state):
+                item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(line, None, "")
+                item.setAttributedTitle_(
+                    NSAttributedString.alloc().initWithString_attributes_(
+                        line,
+                        {
+                            NSFontAttributeName: self.menu_font,
+                            NSForegroundColorAttributeName: NSColor.labelColor(),
+                        },
+                    )
+                )
+                item.setEnabled_(True)
+                menu.addItem_(item)
+
     app = NSApplication.sharedApplication()
     app.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
 
     controller = DarwinMenuBarController.alloc().init()
     controller.blink_colon = False
+    controller.menu_font = menu_status_font()
     controller.status_item = NSStatusBar.systemStatusBar().statusItemWithLength_(NSVariableStatusItemLength)
+    controller.menu = NSMenu.alloc().initWithTitle_("Timer")
+    controller.menu.setAutoenablesItems_(False)
+    controller.menu.setDelegate_(controller)
+    controller.status_item.setMenu_(controller.menu)
     controller.timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
         1.0,
         controller,

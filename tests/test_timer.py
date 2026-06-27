@@ -1,7 +1,7 @@
 import subprocess
 import unittest
 from argparse import Namespace
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime, timedelta
 from io import StringIO
 from pathlib import Path
@@ -151,6 +151,62 @@ class TimerStateTests(unittest.TestCase):
         self.assertEqual(finish_transition[2].phase, timer.BREAK_PHASE)
         self.assertEqual(finish_transition[3].break_num, 2)
         self.assertIsNone(finish_transition[3].phase)
+
+
+class TimerStatsTests(unittest.TestCase):
+    @patch("timer.seconds_remaining", return_value=75)
+    @patch("timer.get_time", return_value="10:00:00 AM")
+    @patch("timer.get_todays_date", return_value="Thursday, 01 Jan 2026")
+    def test_timer_stats_lines_uses_active_snapshot(self, todays_date_mock, time_mock, seconds_remaining_mock):
+        state = timer.TimerState()
+        state.start_round(
+            now=datetime(2026, 1, 1, 10, 0, 0),
+            work_duration=90,
+            break_duration=20,
+        )
+
+        self.assertEqual(
+            timer.timer_stats_lines(state),
+            [
+                "Date             : Thursday, 01 Jan 2026",
+                "Time             : 10:00:00 AM",
+                "# Breaks         : 0",
+                "Work Start Time  : 10:00:00 AM",
+                "Next Break Time  : 10:01:30 AM",
+                "Time for Break   : 1m 15s",
+            ],
+        )
+        seconds_remaining_mock.assert_called_once_with(datetime(2026, 1, 1, 10, 1, 30))
+        todays_date_mock.assert_called_once_with()
+        time_mock.assert_called_once_with()
+
+    @patch("timer.get_time", return_value="10:00:00 AM")
+    @patch("timer.get_todays_date", return_value="Thursday, 01 Jan 2026")
+    def test_timer_stats_lines_handles_unstarted_timer(self, todays_date_mock, time_mock):
+        self.assertEqual(
+            timer.timer_stats_lines(timer.TimerState()),
+            [
+                "Date             : Thursday, 01 Jan 2026",
+                "Time             : 10:00:00 AM",
+                "# Breaks         : 0",
+                "Work Start Time  : N/A",
+                "Next Break Time  : N/A",
+                "Time for Break   : 0m 0s",
+            ],
+        )
+        todays_date_mock.assert_called_once_with()
+        time_mock.assert_called_once_with()
+
+    def test_print_stats_prints_shared_formatter_output(self):
+        state = timer.TimerState()
+        output = StringIO()
+
+        with patch("timer.timer_stats_lines", return_value=["alpha", "beta"]) as stats_lines_mock:
+            with redirect_stdout(output):
+                timer.print_stats(state)
+
+        stats_lines_mock.assert_called_once_with(state)
+        self.assertEqual(output.getvalue(), "alpha\nbeta\n\n")
 
 
 class MenuBarStatusTests(unittest.TestCase):
