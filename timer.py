@@ -6,10 +6,11 @@ import platform
 import signal
 import subprocess
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from threading import RLock, Thread
 from time import sleep
 from typing import Optional, Sequence
 
@@ -19,6 +20,10 @@ VOLUME = "0.5"
 TIME_FMT = "%I:%M:%S %p"
 DEFAULT_WORK_DURATION = 900
 DEFAULT_BREAK_DURATION = 120
+WORK_PHASE = "work"
+BREAK_PHASE = "break"
+WORK_ICON = "💻"
+BREAK_ICON = "☕️"
 
 BASE_DIR = Path(__file__).resolve().parent
 AUDIO_DIR = BASE_DIR / "audio"
@@ -28,19 +33,58 @@ LOG_DIR = BASE_DIR / "logs"
 
 log = logging.getLogger("timer.log")
 log.addHandler(logging.NullHandler())
+_darwin_menu_bar_controller = None
+
+
+@dataclass(frozen=True)
+class TimerSnapshot:
+    break_num: int
+    phase: Optional[str]
+    deadline: Optional[datetime]
+    work_start_time: Optional[datetime]
+    next_work_time: Optional[datetime]
+    next_break_time: Optional[datetime]
 
 
 @dataclass
 class TimerState:
     break_num: int = 1
+    phase: Optional[str] = None
+    deadline: Optional[datetime] = None
     work_start_time: Optional[datetime] = None
     next_work_time: Optional[datetime] = None
     next_break_time: Optional[datetime] = None
+    _lock: RLock = field(default_factory=RLock, init=False, repr=False)
 
     def start_round(self, now: datetime, work_duration: int, break_duration: int) -> None:
-        self.work_start_time = now
-        self.next_break_time = now + timedelta(seconds=work_duration)
-        self.next_work_time = self.next_break_time + timedelta(seconds=break_duration)
+        with self._lock:
+            self.phase = WORK_PHASE
+            self.work_start_time = now
+            self.next_break_time = now + timedelta(seconds=work_duration)
+            self.next_work_time = self.next_break_time + timedelta(seconds=break_duration)
+            self.deadline = self.next_break_time
+
+    def start_break(self) -> None:
+        with self._lock:
+            self.phase = BREAK_PHASE
+            self.deadline = self.next_work_time
+
+    def finish_break(self) -> None:
+        with self._lock:
+            self.break_num += 1
+            self.phase = None
+            self.deadline = None
+
+    def snapshot(self) -> TimerSnapshot:
+        with self._lock:
+            return TimerSnapshot(
+                break_num=self.break_num,
+                phase=self.phase,
+                deadline=self.deadline,
+                work_start_time=self.work_start_time,
+                next_work_time=self.next_work_time,
+                next_break_time=self.next_break_time,
+            )
 
 
 def init_logger(log_dir: Path = LOG_DIR) -> logging.Logger:
@@ -151,6 +195,46 @@ def get_todays_date(today: Optional[date] = None) -> str:
 
 def get_path() -> str:
     return str(BASE_DIR)
+
+
+def seconds_remaining(deadline: Optional[datetime], now: Optional[datetime] = None) -> int:
+    if deadline is None:
+        return 0
+
+    remaining = int((deadline - (now or datetime.now())).total_seconds())
+    return max(0, remaining)
+
+
+def sleep_until(deadline: datetime, sleep_fn=sleep, now_fn=datetime.now) -> None:
+    remaining = (deadline - now_fn()).total_seconds()
+    if remaining > 0:
+        sleep_fn(remaining)
+
+
+def format_menu_bar_status(
+    phase: Optional[str],
+    deadline: Optional[datetime],
+    now: Optional[datetime] = None,
+    blink_colon: bool = True,
+) -> str:
+    if phase == WORK_PHASE:
+        icon = WORK_ICON
+    elif phase == BREAK_PHASE:
+        icon = BREAK_ICON
+    else:
+        return ""
+
+    minutes, seconds = divmod(seconds_remaining(deadline, now), 60)
+    separator = ":" if blink_colon else " "
+    return f"{icon} {minutes}{separator}{seconds:02d}"
+
+
+def format_menu_bar_snapshot(
+    snapshot: TimerSnapshot,
+    now: Optional[datetime] = None,
+    blink_colon: bool = True,
+) -> str:
+    return format_menu_bar_status(snapshot.phase, snapshot.deadline, now, blink_colon)
 
 
 def greet(base_dir: Path = BASE_DIR) -> None:
@@ -273,22 +357,18 @@ def notify(title: str, subtitle: str, platform_name: str, sleep_fn=sleep) -> Non
 
 
 def time_remaining_for_next_break(state: TimerState, now: Optional[datetime] = None) -> str:
-    if state.next_break_time is None:
-        return "0m 0s"
-
-    remaining = int((state.next_break_time - (now or datetime.now())).total_seconds())
-    remaining = max(0, remaining)
-    minutes, seconds = divmod(remaining, 60)
+    minutes, seconds = divmod(seconds_remaining(state.snapshot().next_break_time, now), 60)
     return f"{minutes}m {seconds}s"
 
 
 def print_stats(state: TimerState) -> None:
+    snapshot = state.snapshot()
     stats = {
         "Date             : ": get_todays_date(),
         "Time             : ": get_time(),
-        "# Breaks         : ": state.break_num - 1,
-        "Work Start Time  : ": format_optional_time(state.work_start_time),
-        "Next Break Time  : ": format_optional_time(state.next_break_time),
+        "# Breaks         : ": snapshot.break_num - 1,
+        "Work Start Time  : ": format_optional_time(snapshot.work_start_time),
+        "Next Break Time  : ": format_optional_time(snapshot.next_break_time),
         "Time for Break   : ": time_remaining_for_next_break(state),
     }
 
@@ -300,12 +380,13 @@ def print_stats(state: TimerState) -> None:
 
 def make_usr_signal_handler(state: TimerState, platform_name: str):
     def usr_signal_handler(sig, frame):
+        snapshot = state.snapshot()
         print_stats(state)
         notify(
-            title=f"Timer Work #{state.break_num}",
+            title=f"Timer Work #{snapshot.break_num}",
             subtitle=(
                 "Next Break @ "
-                f"{format_optional_time(state.next_break_time)} "
+                f"{format_optional_time(snapshot.next_break_time)} "
                 f"({time_remaining_for_next_break(state)})"
             ),
             platform_name=platform_name,
@@ -325,12 +406,103 @@ def configure_signals(state: TimerState, platform_name: str) -> None:
         signal.signal(signal.SIGUSR1, make_usr_signal_handler(state, platform_name))
 
 
-def run_timer(args: argparse.Namespace, platform_name: str) -> None:
-    state = TimerState()
-    configure_signals(state, platform_name)
+def setup_darwin_menu_bar(state: TimerState):
+    from AppKit import (
+        NSApplication,
+        NSApplicationActivationPolicyAccessory,
+        NSStatusBar,
+        NSVariableStatusItemLength,
+    )
+    from Foundation import NSObject, NSTimer
 
+    class DarwinMenuBarController(NSObject):
+        def updateStatus_(self, timer):
+            self.blink_colon = not self.blink_colon
+            title = format_menu_bar_snapshot(state.snapshot(), blink_colon=self.blink_colon)
+            button = self.status_item.button()
+            if button is not None:
+                button.setTitle_(title)
+
+    app = NSApplication.sharedApplication()
+    app.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
+
+    controller = DarwinMenuBarController.alloc().init()
+    controller.blink_colon = False
+    controller.status_item = NSStatusBar.systemStatusBar().statusItemWithLength_(NSVariableStatusItemLength)
+    controller.timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
+        1.0,
+        controller,
+        "updateStatus:",
+        None,
+        True,
+    )
+    controller.updateStatus_(None)
+
+    global _darwin_menu_bar_controller
+    _darwin_menu_bar_controller = controller
+    return app
+
+
+def notify_async(title: str, subtitle: str, platform_name: str) -> None:
+    notification_thread = Thread(
+        target=notify,
+        kwargs={"title": title, "subtitle": subtitle, "platform_name": platform_name},
+        daemon=True,
+    )
+    notification_thread.start()
+
+
+def run_timer_round(
+    args: argparse.Namespace,
+    platform_name: str,
+    state: TimerState,
+    now_fn=datetime.now,
+    sleep_fn=sleep,
+) -> None:
+    state.start_round(now_fn(), args.work_duration, args.break_duration)
+    snapshot = state.snapshot()
+
+    log.info(
+        "Work  # %s, start work %s, end work/next break %s",
+        snapshot.break_num,
+        format_optional_time(snapshot.work_start_time),
+        format_optional_time(snapshot.next_break_time),
+    )
+    if args.notification and is_mac(platform_name) and args.work_duration > 5:
+        notification_time = snapshot.next_break_time - timedelta(seconds=5)
+        sleep_until(notification_time, sleep_fn=sleep_fn, now_fn=now_fn)
+        notify_async(
+            title=f"Take Break #{snapshot.break_num}",
+            subtitle=f"Resume Work @ {format_optional_time(snapshot.next_work_time)}",
+            platform_name=platform_name,
+        )
+
+    sleep_until(snapshot.next_break_time, sleep_fn=sleep_fn, now_fn=now_fn)
+    state.start_break()
+    snapshot = state.snapshot()
+
+    log.info(
+        "Break # %s, start break %s, end break/next work %s",
+        snapshot.break_num,
+        get_time(),
+        format_optional_time(snapshot.next_work_time),
+    )
+    display_sleep(platform_name)
+    if not args.silent:
+        play_sound(AUDIO_DIR / "take_break.wav", platform_name)
+
+    sleep_until(snapshot.next_work_time, sleep_fn=sleep_fn, now_fn=now_fn)
+    wakeup(platform_name)
+    if not args.silent:
+        play_sound(AUDIO_DIR / "two_mins_up.wav", platform_name)
+
+    state.finish_break()
+
+
+def run_timer_loop(args: argparse.Namespace, platform_name: str, state: TimerState) -> None:
     log.debug("Platform: %s", platform_name)
     log.debug("Timer application path: %s", BASE_DIR)
+    log.debug("Timer settings: work=%ss, break=%ss", args.work_duration, args.break_duration)
 
     greet()
     log.info("Today's date: %s", get_todays_date())
@@ -341,41 +513,25 @@ def run_timer(args: argparse.Namespace, platform_name: str) -> None:
         play_sound(AUDIO_DIR / "start_timer.wav", platform_name)
 
     while True:
-        state.start_round(datetime.now(), args.work_duration, args.break_duration)
+        run_timer_round(args, platform_name, state)
 
-        log.info(
-            "Work  # %s, start work %s, end work/next break %s",
-            state.break_num,
-            format_optional_time(state.work_start_time),
-            format_optional_time(state.next_break_time),
-        )
-        if args.notification and is_mac(platform_name) and args.work_duration > 5:
-            sleep(args.work_duration - 5)
-            notify(
-                title=f"Take Break #{state.break_num}",
-                subtitle=f"Resume Work @ {format_optional_time(state.next_work_time)}",
-                platform_name=platform_name,
-            )
+
+def run_timer(args: argparse.Namespace, platform_name: str) -> None:
+    state = TimerState()
+    configure_signals(state, platform_name)
+
+    if is_mac(platform_name):
+        try:
+            app = setup_darwin_menu_bar(state)
+        except Exception as exc:
+            log.debug("Failed to start Darwin menu bar timer: %s", exc)
         else:
-            sleep(args.work_duration)
+            timer_thread = Thread(target=run_timer_loop, args=(args, platform_name, state), daemon=True)
+            timer_thread.start()
+            app.run()
+            return
 
-        display_sleep(platform_name)
-        if not args.silent:
-            play_sound(AUDIO_DIR / "take_break.wav", platform_name)
-
-        log.info(
-            "Break # %s, start break %s, end break/next work %s",
-            state.break_num,
-            get_time(),
-            format_optional_time(state.next_work_time),
-        )
-        sleep(args.break_duration)
-
-        wakeup(platform_name)
-        if not args.silent:
-            play_sound(AUDIO_DIR / "two_mins_up.wav", platform_name)
-
-        state.break_num += 1
+    run_timer_loop(args, platform_name, state)
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:

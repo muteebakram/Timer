@@ -52,6 +52,14 @@ require_venv() {
   fi
 }
 
+is_timer_pid() {
+  local pid=${1}
+  local command
+
+  command=$(ps -p "${pid}" -o command= 2>/dev/null || true)
+  [[ "${command}" == *"timer.py"* ]]
+}
+
 read_timer_pid() {
   if [ ! -f "${PID_FILE}" ]; then
     return 1
@@ -59,7 +67,7 @@ read_timer_pid() {
 
   local pid
   pid=$(cat "${PID_FILE}")
-  if [[ "${pid}" =~ ^[0-9]+$ ]] && kill -0 "${pid}" 2>/dev/null; then
+  if [[ "${pid}" =~ ^[0-9]+$ ]] && kill -0 "${pid}" 2>/dev/null && is_timer_pid "${pid}"; then
     printf "%s" "${pid}"
     return 0
   fi
@@ -68,17 +76,38 @@ read_timer_pid() {
   return 1
 }
 
-is_running() {
-  local print_status=${1}
+timer_pids() {
   local pid
 
   if pid=$(read_timer_pid); then
-    if [ "${print_status}" == 1 ]; then
-      if ps -p "${pid}" -o command= | grep -q -- "--silent"; then
-        printf "online (silent) 😊\n"
-      else
-        printf "online 😊\n"
-      fi
+    printf "%s\n" "${pid}"
+  fi
+
+  pgrep -f "[t]imer.py" 2>/dev/null || true
+}
+
+unique_timer_pids() {
+  timer_pids | awk 'NF && !seen[$0]++'
+}
+
+is_running() {
+  local print_status=${1}
+  local found=false
+  local pid
+  local silent=false
+
+  while IFS= read -r pid; do
+    found=true
+    if ps -p "${pid}" -o command= 2>/dev/null | grep -q -- "--silent"; then
+      silent=true
+    fi
+  done < <(unique_timer_pids)
+
+  if [ "${found}" == true ]; then
+    if [ "${print_status}" == 1 ] && [ "${silent}" == true ]; then
+      printf "online (silent) 😊\n"
+    elif [ "${print_status}" == 1 ]; then
+      printf "online 😊\n"
     fi
     return 0
   fi
@@ -168,10 +197,10 @@ if [ "${check_status}" == true ]; then
 fi
 
 if [ "${kill_timer}" == true ]; then
-  if pid=$(read_timer_pid); then
+  while IFS= read -r pid; do
     kill "${pid}" 2>/dev/null || true
-    rm -f "${PID_FILE}"
-  fi
+  done < <(unique_timer_pids)
+  rm -f "${PID_FILE}"
   exit 0
 fi
 
@@ -182,13 +211,15 @@ if [ "${show_log}" == true ]; then
 fi
 
 if [ "${print_stats}" == true ]; then
-  if pid=$(read_timer_pid); then
-    kill -USR1 "${pid}"
-  else
-    printf "Timer is not running.\n" >&2
-    exit 1
+  if is_running 0; then
+    while IFS= read -r pid; do
+      kill -USR1 "${pid}"
+    done < <(unique_timer_pids)
+    exit 0
   fi
-  exit 0
+
+  printf "Timer is not running.\n" >&2
+  exit 1
 fi
 
 if is_running 0; then
@@ -217,7 +248,7 @@ if [ -n "${break_duration}" ]; then
   timer_args+=(--break-duration "${break_duration}")
 fi
 
-python3 timer.py "${timer_args[@]}" >>"${LOG_FILE}" 2>&1 &
+python3 "${SCRIPT_DIR}/timer.py" "${timer_args[@]}" >>"${LOG_FILE}" 2>&1 &
 timer_pid=${!}
 printf "%s\n" "${timer_pid}" >"${PID_FILE}"
 
