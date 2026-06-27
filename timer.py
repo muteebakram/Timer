@@ -18,8 +18,8 @@ from typing import Optional, Sequence
 # ----------------------------------Configuration--------------------------------
 VOLUME = "0.5"
 TIME_FMT = "%I:%M:%S %p"
-DEFAULT_WORK_DURATION = 900
-DEFAULT_BREAK_DURATION = 120
+DEFAULT_WORK_DURATION = 1200
+DEFAULT_BREAK_DURATION = 300
 WORK_PHASE = "work"
 BREAK_PHASE = "break"
 WORK_ICON = "💻"
