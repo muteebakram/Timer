@@ -539,7 +539,7 @@ def run_timer_round(
 def run_timer_loop(args: argparse.Namespace, platform_name: str, state: TimerState) -> None:
     log.debug("Platform: %s", platform_name)
     log.debug("Timer application path: %s", BASE_DIR)
-    log.debug("Timer settings: work=%ss, break=%ss", args.work_duration, args.break_duration)
+    log.debug("Timer configuration: work=%ss, break=%ss, silent=%s, notification=%s", args.work_duration, args.break_duration, args.silent, args.notification)
 
     greet()
     log.info("Today's date: %s", get_todays_date())

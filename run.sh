@@ -206,6 +206,7 @@ fi
 
 if [ "${show_log}" == true ]; then
   touch "${LOG_FILE}"
+  echo "${LOG_FILE}"
   tail -f "${LOG_FILE}"
   exit 0
 fi
@@ -231,7 +232,6 @@ require_venv
 source "${VENV_DIR}/bin/activate"
 
 timer_args=()
-
 if [ "${notification}" == true ]; then
   timer_args+=(--notification)
 fi
@@ -251,5 +251,4 @@ fi
 python3 "${SCRIPT_DIR}/timer.py" "${timer_args[@]}" >>"${LOG_FILE}" 2>&1 &
 timer_pid=${!}
 printf "%s\n" "${timer_pid}" >"${PID_FILE}"
-
 deactivate
